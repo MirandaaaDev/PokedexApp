@@ -29,8 +29,8 @@ cd PokedexApp
 ### 2. Instale as dependências
 - Certifique-se de ter o Node.js e o Expo CLI instalados
   
-npm install
-npx expo start
+- npm install
+- npx expo start
 
 Autor
 Desenvolvido por MirandaaaDev
