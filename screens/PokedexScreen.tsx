@@ -1,84 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getPokemons, getPokemonDetails } from '../services/api';
-import { Pokemon } from '../types/Pokemon';
 import { PokemonCard } from '../components/PokemonCard';
-
-const PAGE_SIZE = 30;
+import { usePokedexViewModel } from './usePokedexViewModel';
 
 export const PokedexScreen = () => {
-  const insets = useSafeAreaInsets(); // ← Hook para área segura
-
-  const [pokemons, setPokemons] = useState<Pokemon[]>([]);
-  const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-
-  const fetchPokemons = async (newOffset = 0, append = false) => {
-    try {
-      const list = await getPokemons(PAGE_SIZE, newOffset);
-      const details = await Promise.all(list.map((p) => getPokemonDetails(p.url)));
-
-      if (append) {
-        setPokemons(prev => [...prev, ...details]);
-      } else {
-        setPokemons(details);
-      }
-
-      if (list.length < PAGE_SIZE) setHasMore(false);
-    } catch (err) {
-      setError('Falha ao carregar Pokémons. Verifique sua conexão.');
-    }
-  };
-
-  useEffect(() => {
-    const loadInitial = async () => {
-      setIsLoading(true);
-      setError(null);
-      await fetchPokemons(0, false);
-      setIsLoading(false);
-    };
-    loadInitial();
-  }, []);
-
-  const loadMorePokemons = async () => {
-    if (isLoadingMore || isLoading || !hasMore) return;
-
-    setIsLoadingMore(true);
-    const newOffset = offset + PAGE_SIZE;
-    await fetchPokemons(newOffset, true);
-    setOffset(newOffset);
-    setIsLoadingMore(false);
-  };
-
-  const filtered = pokemons.filter((p) =>
-    p.name.includes(search.toLowerCase())
-  );
-
-  const renderFooter = () =>
-    isLoadingMore ? (
-      <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#888" />
-        <Text>Carregando mais Pokémons...</Text>
-      </View>
-    ) : null;
+  const insets = useSafeAreaInsets();
+  const {
+    pokemons,
+    searchQuery,
+    setSearchQuery,
+    isLoading,
+    isLoadingMore,
+    error,
+    loadMorePokemons,
+  } = usePokedexViewModel();
 
   if (isLoading) {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color="#FF0000" />
-        <Text style={{ marginTop: 10 }}>Carregando Pokémons...</Text>
+        <Text style={styles.loadingText}>Carregando Pokémons...</Text>
       </View>
     );
   }
@@ -86,7 +28,7 @@ export const PokedexScreen = () => {
   if (error) {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
-        <Text style={{ color: 'red', fontSize: 16 }}>{error}</Text>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -96,22 +38,31 @@ export const PokedexScreen = () => {
       <Text style={styles.title}>Pokédex</Text>
       <TextInput
         placeholder="Buscar pokémon..."
+        placeholderTextColor="#888"
         style={styles.input}
-        onChangeText={setSearch}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
       />
       <FlatList
-        data={filtered}
+        data={pokemons}
         keyExtractor={(item) => item.id.toString()}
         numColumns={2}
         renderItem={({ item }) => <PokemonCard pokemon={item} />}
         onEndReached={loadMorePokemons}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.footer}>
+              <ActivityIndicator size="small" color="#AAA" />
+              <Text style={styles.footerText}>Carregando mais Pokémons...</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={() => (
           <View style={styles.center}>
-            {search ? (
+            {searchQuery ? (
               <Text style={styles.emptyText}>
-                Nenhum Pokémon encontrado para '{search}'
+                Nenhum Pokémon encontrado para '{searchQuery}'
               </Text>
             ) : (
               <Text style={styles.emptyText}>
@@ -125,28 +76,54 @@ export const PokedexScreen = () => {
   );
 };
 
+// Estilos
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    // Removido o paddingTop fixo
+    backgroundColor: '#121212',
   },
-  center: { justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 12 },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#FFF',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#FFF',
+    textAlign: 'center',
+  },
   input: {
-    backgroundColor: '#f1f1f1',
-    padding: 10,
+    backgroundColor: '#1E1E1E',
+    color: '#FFF',
+    padding: 12,
     borderRadius: 8,
     marginBottom: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 20,
+    borderColor: '#333',
+    borderWidth: 1,
   },
   footer: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  footerText: {
+    color: '#AAA',
+    marginTop: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#AAA',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
