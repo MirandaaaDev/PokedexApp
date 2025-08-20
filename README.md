@@ -1,6 +1,6 @@
 # PokedexApp
 
-Este é um aplicativo simples de Pokédex desenvolvido com React Native e Expo para fins didáticos no curso de Desenvolvimento Mobile do IFSP.
+Este é um aplicativo simples de Pokédex desenvolvido com React Native e Expo para fins didáticos.
 
 ---
 
